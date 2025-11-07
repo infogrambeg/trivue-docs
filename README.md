@@ -12,21 +12,39 @@
 ## 1. Architecture Overview - 11 Modula sa Event Flows
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {
+  'background':'#ffffff',
+  'primaryColor':'#0b5fff',
+  'secondaryColor':'#0f172a',
+  'tertiaryColor':'#10b981',
+  'lineColor':'#334155',
+  'textColor':'#0f172a',
+  'fontSize':'16px',
+  'nodeTextColor':'#0f172a',
+  'edgeLabelBackground':'#e6f2ff',
+  'clusterBkg':'#f8fafc'
+}}}%%
 graph LR
-    POS[POS Devices]
-    Mobile[Mobile App]
-    ESIR[ESIR Fiscal]
+    classDef core fill:#0b5fff,stroke:#062e8a,stroke-width:2px,color:#ffffff,font-weight:600;
+    classDef integration fill:#ef4444,stroke:#7f1d1d,stroke-width:2px,color:#ffffff,font-weight:600;
+    classDef support fill:#f59e0b,stroke:#78350f,stroke-width:2px,color:#ffffff,font-weight:600;
+    classDef infra fill:#94a3b8,stroke:#475569,stroke-width:1px,color:#0f172a,font-weight:600;
+    classDef external fill:#7c3aed,stroke:#4c1d95,stroke-width:2px,color:#ffffff,font-weight:600;
 
-    Members[MEMBERS]
-    Points[POINTS]
-    Rewards[REWARDS]
-    Integration[INTEGRATION]
-    Locations[LOCATIONS]
-    Campaigns[CAMPAIGNS]
+    POS[POS Devices]:::external
+    Mobile[Mobile App]:::external
+    ESIR[ESIR Fiscal]:::external
 
-    DB[(PostgreSQL)]
-    Cache[(Redis)]
-    MQ[RabbitMQ]
+    Members[MEMBERS]:::core
+    Points[POINTS]:::core
+    Rewards[REWARDS]:::core
+    Integration[INTEGRATION]:::integration
+    Locations[LOCATIONS]:::integration
+    Campaigns[CAMPAIGNS]:::support
+
+    DB[(PostgreSQL)]:::infra
+    Cache[(Redis)]:::infra
+    MQ[RabbitMQ]:::infra
 
     POS -->|HMAC| Integration
     Mobile -->|JWT| Members
@@ -55,15 +73,25 @@ graph LR
 ## 2. Triple-Layer Event-Driven Architecture
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {
+  'background':'#ffffff',
+  'textColor':'#0f172a',
+  'fontSize':'15px',
+  'noteBkgColor':'#f1f5f9',
+  'noteTextColor':'#0f172a',
+  'lineColor':'#334155'
+}}}%%
 sequenceDiagram
+    autonumber
     participant Location as Locations Module
     participant Outbox as Outbox Interceptor
-    participant L1 as Layer 1: MediatR<br/>(INSTANT)
-    participant L2 as Layer 2: RabbitMQ<br/>(EVENTUAL)
-    participant L3 as Layer 3: Redis Cache<br/>(PERFORMANCE)
+    participant L1 as Layer 1: MediatR\n(INSTANT)
+    participant L2 as Layer 2: RabbitMQ\n(EVENTUAL)
+    participant L3 as Layer 3: Redis Cache\n(PERFORMANCE)
     participant Integration as Integration Module
     participant DB as PostgreSQL
 
+    Note right of Location: larger-font, high-contrast labels
     Location->>Location: location.Update("New Name")
     Location->>Location: RaiseDomainEvent(LocationUpdated)
     Location->>DB: SaveChanges() - ATOMIC
@@ -93,7 +121,16 @@ sequenceDiagram
 ## 3. POS Integration Flow - Transaction Recording
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {
+  'background':'#ffffff',
+  'textColor':'#0f172a',
+  'fontSize':'15px',
+  'noteBkgColor':'#f8fafc',
+  'noteTextColor':'#0f172a',
+  'lineColor':'#334155'
+}}}%%
 sequenceDiagram
+    autonumber
     participant POS as POS Device
     participant HMAC as HMAC Middleware
     participant API as Integration API
@@ -103,7 +140,7 @@ sequenceDiagram
     participant RabbitMQ as RabbitMQ
     participant DB as PostgreSQL
 
-    POS->>HMAC: POST /api/pos/transactions<br/>Headers: ApiKey, Timestamp, Signature
+    POS->>HMAC: POST /api/pos/transactions\nHeaders: ApiKey, Timestamp, Signature
     HMAC->>HMAC: Validate Timestamp (±5 min)
     HMAC->>HMAC: Lookup PosDevice by ApiKey
     HMAC->>HMAC: Compute HMAC-SHA256(secret, payload)
@@ -139,7 +176,16 @@ sequenceDiagram
 ## 4. Member Registration Flow - Cross-Module Events
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {
+  'background':'#ffffff',
+  'textColor':'#0f172a',
+  'fontSize':'15px',
+  'noteBkgColor':'#f8fafc',
+  'noteTextColor':'#0f172a',
+  'lineColor':'#334155'
+}}}%%
 sequenceDiagram
+    autonumber
     participant Mobile as Mobile App
     participant Members as Members Module
     participant Outbox as Outbox Pattern
@@ -149,7 +195,7 @@ sequenceDiagram
     participant Referrals as Referrals Module
     participant DB as PostgreSQL
 
-    Mobile->>Members: POST /api/members/register<br/>{email, password, referralCode}
+    Mobile->>Members: POST /api/members/register\n{email, password, referralCode}
     Members->>Members: Member.Register()
     Members->>Members: Validate email uniqueness
     Members->>Members: BCrypt hash password
@@ -182,21 +228,31 @@ sequenceDiagram
 ## 5. Deployment Architecture - Docker Containers
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {
+  'background':'#ffffff',
+  'textColor':'#0f172a',
+  'fontSize':'15px',
+  'lineColor':'#334155'
+}}}%%
 graph LR
-    LB[Load Balancer]
+    classDef infra fill:#94a3b8,stroke:#475569,stroke-width:1px,color:#0f172a,font-weight:600
+    classDef api fill:#0b5fff,stroke:#062e8a,stroke-width:2px,color:#ffffff,font-weight:600
+    classDef external fill:#7c3aed,stroke:#4c1d95,stroke-width:2px,color:#ffffff,font-weight:600
 
-    API1[API-1]
-    API2[API-2]
-    API3[API-N]
+    LB[Load Balancer]:::infra
 
-    PG[(PostgreSQL Primary)]
-    PG_R[(PG Replica)]
+    API1[API-1]:::api
+    API2[API-2]:::api
+    API3[API-N]:::api
 
-    Redis[(Redis Master)]
-    RMQ[RabbitMQ]
+    PG[(PostgreSQL Primary)]:::infra
+    PG_R[(PG Replica)]:::infra
 
-    POS[POS Devices]
-    Mobile[Mobile]
+    Redis[(Redis Master)]:::infra
+    RMQ[RabbitMQ]:::infra
+
+    POS[POS Devices]:::external
+    Mobile[Mobile]:::external
 
     LB --> API1
     LB --> API2
@@ -226,7 +282,16 @@ graph LR
 ## 6. HMAC Authentication Flow
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {
+  'background':'#ffffff',
+  'textColor':'#0f172a',
+  'fontSize':'15px',
+  'noteBkgColor':'#f1f5f9',
+  'noteTextColor':'#0f172a',
+  'lineColor':'#334155'
+}}}%%
 sequenceDiagram
+    autonumber
     participant POS as POS Device
     participant Middleware as HMAC Middleware
     participant Cache as Redis (Nonce Cache)
@@ -238,36 +303,36 @@ sequenceDiagram
     POS->>POS: payload = JSON(request body)
     POS->>POS: signature = HMAC-SHA256(ApiKey:timestamp:nonce:payload, secretKey)
 
-    POS->>Middleware: POST /api/pos/transactions<br/>Headers:<br/>X-POS-ApiKey: pk_live_XXX<br/>X-POS-Timestamp: 1699123456<br/>X-POS-Nonce: abc123<br/>X-POS-Signature: xyz789
+    POS->>Middleware: POST /api/pos/transactions\nHeaders:\nX-POS-ApiKey: pk_live_XXX\nX-POS-Timestamp: 1699123456\nX-POS-Nonce: abc123\nX-POS-Signature: xyz789
 
     Middleware->>Middleware: Extract Headers
-    Middleware->>Middleware: Validate Timestamp<br/>(|now - timestamp| <= 5 min)
+    Middleware->>Middleware: Validate Timestamp\n(|now - timestamp| <= 5 min)
 
     alt Timestamp Expired
-        Middleware-->>POS: 401 Unauthorized<br/>"Request expired"
+        Middleware-->>POS: 401 Unauthorized\n"Request expired"
     end
 
     Middleware->>Cache: Check Nonce exists?
     Cache-->>Middleware: Nonce found
 
     alt Nonce Already Used
-        Middleware-->>POS: 401 Unauthorized<br/>"Duplicate request (replay attack)"
+        Middleware-->>POS: 401 Unauthorized\n"Duplicate request (replay attack)"
     end
 
     Middleware->>DB: GetPosDeviceByApiKey(apiKey)
     DB-->>Middleware: PosDevice (with SecretKeyHash)
 
     alt Device Not Found or Blocked
-        Middleware-->>POS: 401 Unauthorized<br/>"Invalid API key"
+        Middleware-->>POS: 401 Unauthorized\n"Invalid API key"
     end
 
-    Middleware->>Middleware: expectedSignature = HMAC-SHA256(<br/>  ApiKey:timestamp:nonce:payload,<br/>  secretKey from DB<br/>)
-    Middleware->>Middleware: Compare Signatures<br/>(constant-time comparison)
+    Middleware->>Middleware: expectedSignature = HMAC-SHA256(\n  ApiKey:timestamp:nonce:payload,\n  secretKey from DB\n)
+    Middleware->>Middleware: Compare Signatures\n(constant-time comparison)
 
     alt Signature Invalid
         Middleware->>DB: Increment FailedAttempts
         Middleware->>DB: Auto-block if FailedAttempts >= 5
-        Middleware-->>POS: 401 Unauthorized<br/>"Invalid signature"
+        Middleware-->>POS: 401 Unauthorized\n"Invalid signature"
     else Signature Valid
         Middleware->>Cache: Store Nonce (TTL: 10 min)
         Middleware->>DB: Reset FailedAttempts = 0
@@ -282,7 +347,16 @@ sequenceDiagram
 ## 7. Rewards Redemption Flow
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {
+  'background':'#ffffff',
+  'textColor':'#0f172a',
+  'fontSize':'15px',
+  'noteBkgColor':'#f8fafc',
+  'noteTextColor':'#0f172a',
+  'lineColor':'#334155'
+}}}%%
 sequenceDiagram
+    autonumber
     participant Member as Member (Mobile App)
     participant Rewards as Rewards Module
     participant Points as Points Module
@@ -290,20 +364,20 @@ sequenceDiagram
     participant DB as PostgreSQL
     participant RabbitMQ as RabbitMQ
 
-    Member->>Rewards: POST /api/rewards/{id}/redeem<br/>{memberId}
+    Member->>Rewards: POST /api/rewards/{id}/redeem\n{memberId}
     Rewards->>Rewards: Validate Reward exists & Active
     Rewards->>Points: CheckPointsBalance(memberId)
     Points-->>Rewards: Balance: 500 points
 
     alt Insufficient Points
-        Rewards-->>Member: 400 Bad Request<br/>"Insufficient points"
+        Rewards-->>Member: 400 Bad Request\n"Insufficient points"
     end
 
     Rewards->>Inventory: CheckStockAvailability(rewardId)
     Inventory-->>Rewards: Stock: 10 items
 
     alt Out of Stock
-        Rewards-->>Member: 409 Conflict<br/>"Out of stock"
+        Rewards-->>Member: 409 Conflict\n"Out of stock"
     end
 
     Rewards->>Rewards: Redemption.Create(memberId, rewardId)
@@ -323,7 +397,7 @@ sequenceDiagram
     RabbitMQ->>Points: Consume (idempotent check)
     RabbitMQ->>Inventory: Consume (idempotent check)
 
-    Rewards-->>Member: 200 OK + RedemptionDto<br/>{redemptionId, voucherCode, expiresAt}
+    Rewards-->>Member: 200 OK + RedemptionDto\n{redemptionId, voucherCode, expiresAt}
 ```
 
 ---
@@ -331,6 +405,12 @@ sequenceDiagram
 ## 8. Campaign Achievement Progress Flow
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {
+  'background':'#ffffff',
+  'textColor':'#0f172a',
+  'fontSize':'15px',
+  'lineColor':'#334155'
+}}}%%
 graph LR
     TransEvent[Transaction Event]
     LoginEvent[Login Event]
@@ -356,6 +436,12 @@ graph LR
 ## 9. Database Schema - Module Isolation
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {
+  'background':'#ffffff',
+  'textColor':'#0f172a',
+  'fontSize':'14px',
+  'lineColor':'#334155'
+}}}%%
 erDiagram
     MEMBERS ||--o{ MEMBER_CONSENTS : has
     MEMBERS ||--o{ MEMBER_CARDS : has
@@ -406,30 +492,36 @@ erDiagram
 ## 10. CI/CD Pipeline - Automated Deployment
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {
+  'background':'#ffffff',
+  'textColor':'#0f172a',
+  'fontSize':'15px',
+  'lineColor':'#334155'
+}}}%%
 graph LR
     subgraph "Developer Workflow"
-        Dev[Developer<br/>Code Changes]
-        PR[Pull Request<br/>GitHub]
+        Dev[Developer\nCode Changes]
+        PR[Pull Request\nGitHub]
     end
 
     subgraph "CI Pipeline - GitHub Actions"
-        Build[Build<br/>.NET 9 SDK]
-        Test[Run Tests<br/>1,287 tests]
-        Docker[Build Docker Images<br/>API + Backoffice]
-        Push[Push to Registry<br/>Docker Hub / ACR]
+        Build[Build\n.NET 9 SDK]
+        Test[Run Tests\n1,287 tests]
+        Docker[Build Docker Images\nAPI + Backoffice]
+        Push[Push to Registry\nDocker Hub / ACR]
     end
 
     subgraph "CD Pipeline - Kubernetes"
-        Helm[Helm Chart Apply<br/>Update Deployment]
-        RollingUpdate[Rolling Update<br/>Zero Downtime]
-        HealthCheck[Health Checks<br/>Liveness/Readiness]
-        Migrate[Auto-Migrate DB<br/>EF Core MigrateAsync]
+        Helm[Helm Chart Apply\nUpdate Deployment]
+        RollingUpdate[Rolling Update\nZero Downtime]
+        HealthCheck[Health Checks\nLiveness/Readiness]
+        Migrate[Auto-Migrate DB\nEF Core MigrateAsync]
     end
 
     subgraph "Production Environment"
-        K8s[Kubernetes Cluster<br/>3 API Pods]
-        Monitor[Monitoring<br/>Application Insights]
-        Alerts[Alerts<br/>Slack/Email]
+        K8s[Kubernetes Cluster\n3 API Pods]
+        Monitor[Monitoring\nApplication Insights]
+        Alerts[Alerts\nSlack/Email]
     end
 
     Dev --> PR
@@ -461,6 +553,12 @@ graph LR
 ## 11. External System Integrations - Current & Planned
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {
+  'background':'#ffffff',
+  'textColor':'#0f172a',
+  'fontSize':'15px',
+  'lineColor':'#334155'
+}}}%%
 graph LR
     API[Trivue API]
 
@@ -530,4 +628,3 @@ graph LR
 **Verzija:** 1.0
 **Datum:** 2025-11-07
 **Autor:** Trivue Architecture Team - Zoran Stevovic
-
