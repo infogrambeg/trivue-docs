@@ -529,5 +529,5 @@ graph LR
 
 **Verzija:** 1.0
 **Datum:** 2025-11-07
-**Autor:** Architecture Team + Claude Code
+**Autor:** Trivue Architecture Team - Zoran Stevovic
 
